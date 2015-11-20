@@ -1,0 +1,20 @@
+{
+  "data_event": {
+	"type": "String",
+	"label": "Data Event",
+	"default": "data",
+	"help": "(Optional) The event type for sensor data. Default: data"
+  },
+  "message_event": {
+	"type": "String",
+	"label": "Message Event",
+	"default": "message",
+	"help": "(Optional) The event type for messages. Default: message"
+  },
+  "groupmessage_event": {
+	"type": "String",
+	"label": "Group Message Event",
+	"default": "groupmessage",
+	"help": "(Optional) The event type for group messages. Default: groupmessage"
+  }
+}
