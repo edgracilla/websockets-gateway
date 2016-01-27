@@ -6,7 +6,7 @@
  * @returns {boolean}
  */
 var isString = function (val) {
-	return typeof val === 'string' || ((!!val && typeof val === 'object') && Object.prototype.toString.call(val) === '[object String]');
+    return typeof val === 'string' || ((!!val && typeof val === 'object') && Object.prototype.toString.call(val) === '[object String]');
 };
 
 /**
@@ -15,7 +15,7 @@ var isString = function (val) {
  * @returns {boolean}
  */
 var isError = function (val) {
-	return (!!val && typeof val === 'object') && typeof val.message === 'string' && Object.prototype.toString.call(val) === '[object Error]';
+    return (!!val && typeof val === 'object') && typeof val.message === 'string' && Object.prototype.toString.call(val) === '[object Error]';
 };
 
 /**
@@ -24,10 +24,10 @@ var isError = function (val) {
  * @constructor
  */
 function Platform() {
-	if (!(this instanceof Platform)) return new Platform();
+    if (!(this instanceof Platform)) return new Platform();
 
-	require('events').EventEmitter.call(this);
-	Platform.init.call(this);
+    require('events').EventEmitter.call(this);
+    Platform.init.call(this);
 }
 
 require('util').inherits(Platform, require('events').EventEmitter);
@@ -36,47 +36,47 @@ require('util').inherits(Platform, require('events').EventEmitter);
  * Init function for Platform.
  */
 Platform.init = function () {
-	process.on('SIGINT', () => {
-		this.emit('close');
+    process.on('SIGINT', () => {
+        this.emit('close');
 
-		setTimeout(() => {
-			this.removeAllListeners();
-			process.exit();
-		}, 2000);
-	});
+        setTimeout(() => {
+            this.removeAllListeners();
+            process.exit();
+        }, 2000);
+    });
 
-	process.on('SIGTERM', () => {
-		this.emit('close');
+    process.on('SIGTERM', () => {
+        this.emit('close');
 
-		setTimeout(() => {
-			this.removeAllListeners();
-			process.exit();
-		}, 2000);
-	});
+        setTimeout(() => {
+            this.removeAllListeners();
+            process.exit();
+        }, 2000);
+    });
 
-	process.on('uncaughtException', (error) => {
-		console.error('Uncaught Exception', error);
-		this.handleException(error);
-		this.emit('close');
+    process.on('uncaughtException', (error) => {
+        console.error('Uncaught Exception', error);
+        this.handleException(error);
+        this.emit('close');
 
-		setTimeout(() => {
-			this.removeAllListeners();
-			process.exit(1);
-		}, 2000);
-	});
+        setTimeout(() => {
+            this.removeAllListeners();
+            process.exit(1);
+        }, 2000);
+    });
 
-	process.on('message', (m) => {
-		if (m.type === 'ready')
-			this.emit('ready', m.data.options, m.data.devices);
-		else if (m.type === 'message')
-			this.emit('message', m.data);
-		else if (m.type === 'adddevice')
-			this.emit('adddevice', m.data);
-		else if (m.type === 'removedevice')
-			this.emit('removedevice', m.data);
-		else if (m.type === 'close')
-			this.emit('close');
-	});
+    process.on('message', (m) => {
+        if (m.type === 'ready')
+            this.emit('ready', m.data.options, m.data.devices);
+        else if (m.type === 'message')
+            this.emit('message', m.data);
+        else if (m.type === 'adddevice')
+            this.emit('adddevice', m.data);
+        else if (m.type === 'removedevice')
+            this.emit('removedevice', m.data);
+        else if (m.type === 'close')
+            this.emit('close');
+    });
 };
 
 /**
@@ -84,14 +84,14 @@ Platform.init = function () {
  * @param {function} [callback] Optional callback to be called once the ready signal has been sent.
  */
 Platform.prototype.notifyReady = function (callback) {
-	callback = callback || function () {
-		};
+    callback = callback || function () {
+        };
 
-	setImmediate(() => {
-		process.send({
-			type: 'ready'
-		}, callback);
-	});
+    setImmediate(() => {
+        process.send({
+            type: 'ready'
+        }, callback);
+    });
 };
 
 /**
@@ -100,15 +100,15 @@ Platform.prototype.notifyReady = function (callback) {
  * @param {function} [callback] Optional callback to be called once the connection signal has been sent.
  */
 Platform.prototype.notifyConnection = function (device, callback) {
-	callback = callback || function () {
-		};
+    callback = callback || function () {
+        };
 
-	if (!device || !isString(device)) return callback(new Error('A valid client/device identifier is required.'));
+    if (!device || !isString(device)) return callback(new Error('A valid client/device identifier is required.'));
 
-	process.send({
-		type: 'connection',
-		data: device
-	}, callback);
+    process.send({
+        type: 'connection',
+        data: device
+    }, callback);
 };
 
 /**
@@ -117,15 +117,15 @@ Platform.prototype.notifyConnection = function (device, callback) {
  * @param {function} [callback] Optional callback to be called once the disconnect signal has been sent.
  */
 Platform.prototype.notifyDisconnection = function (device, callback) {
-	callback = callback || function () {
-		};
+    callback = callback || function () {
+        };
 
-	if (!device || !isString(device)) return callback(new Error('A valid client/device identifier is required.'));
+    if (!device || !isString(device)) return callback(new Error('A valid client/device identifier is required.'));
 
-	process.send({
-		type: 'disconnect',
-		data: device
-	}, callback);
+    process.send({
+        type: 'disconnect',
+        data: device
+    }, callback);
 };
 
 /**
@@ -133,14 +133,14 @@ Platform.prototype.notifyDisconnection = function (device, callback) {
  * @param {function} [callback] Optional callback to be called once the close signal has been sent.
  */
 Platform.prototype.notifyClose = function (callback) {
-	callback = callback || function () {
-		};
+    callback = callback || function () {
+        };
 
-	setImmediate(() => {
-		process.send({
-			type: 'close'
-		}, callback);
-	});
+    setImmediate(() => {
+        process.send({
+            type: 'close'
+        }, callback);
+    });
 };
 
 /**
@@ -150,21 +150,21 @@ Platform.prototype.notifyClose = function (callback) {
  * @param callback Optional callback to be called once the data has been sent.
  */
 Platform.prototype.processData = function (device, data, callback) {
-	callback = callback || function () {
-		};
+    callback = callback || function () {
+        };
 
-	setImmediate(() => {
-		if (!device || !isString(device)) return callback(new Error('A valid client/device identifier is required.'));
-		if (!data || !isString(data)) return callback(new Error('A valid data is required.'));
+    setImmediate(() => {
+        if (!device || !isString(device)) return callback(new Error('A valid client/device identifier is required.'));
+        if (!data || !isString(data)) return callback(new Error('A valid data is required.'));
 
-		process.send({
-			type: 'data',
-			data: {
-				device: device,
-				data: data
-			}
-		}, callback);
-	});
+        process.send({
+            type: 'data',
+            data: {
+                device: device,
+                data: data
+            }
+        }, callback);
+    });
 };
 
 /**
@@ -174,21 +174,21 @@ Platform.prototype.processData = function (device, data, callback) {
  * @param {function} [callback] Optional callback to be called once the message has been sent.
  */
 Platform.prototype.sendMessageToDevice = function (device, message, callback) {
-	callback = callback || function () {
-		};
+    callback = callback || function () {
+        };
 
-	setImmediate(() => {
-		if (!device || !isString(device)) return callback(new Error('A valid device id is required.'));
-		if (!message || !isString(message)) return callback(new Error('A valid message is required.'));
+    setImmediate(() => {
+        if (!device || !isString(device)) return callback(new Error('A valid device id is required.'));
+        if (!message || !isString(message)) return callback(new Error('A valid message is required.'));
 
-		process.send({
-			type: 'message',
-			data: {
-				device: device,
-				message: message
-			}
-		}, callback);
-	});
+        process.send({
+            type: 'message',
+            data: {
+                device: device,
+                message: message
+            }
+        }, callback);
+    });
 };
 
 /**
@@ -198,21 +198,21 @@ Platform.prototype.sendMessageToDevice = function (device, message, callback) {
  * @param {function} [callback] Optional callback to be called once the message has been sent.
  */
 Platform.prototype.sendMessageToGroup = function (group, message, callback) {
-	callback = callback || function () {
-		};
+    callback = callback || function () {
+        };
 
-	setImmediate(() => {
-		if (!group || !isString(group)) return callback(new Error('A valid group name is required.'));
-		if (!message || !isString(message)) return callback(new Error('A valid message is required.'));
+    setImmediate(() => {
+        if (!group || !isString(group)) return callback(new Error('A valid group name is required.'));
+        if (!message || !isString(message)) return callback(new Error('A valid message is required.'));
 
-		process.send({
-			type: 'message',
-			data: {
-				group: group,
-				message: message
-			}
-		}, callback);
-	});
+        process.send({
+            type: 'message',
+            data: {
+                group: group,
+                message: message
+            }
+        }, callback);
+    });
 };
 
 /**
@@ -223,19 +223,19 @@ Platform.prototype.sendMessageToGroup = function (group, message, callback) {
  * @param callback
  */
 Platform.prototype.sendMessageResponse = function (messageId, response, callback) {
-	callback = callback || function () {
-		};
+    callback = callback || function () {
+        };
 
-	if (!messageId || !isString(messageId)) return callback(new Error('A valid message id is required.'));
-	if (!response || !isString(response)) return callback(new Error('A valid response is required.'));
+    if (!messageId || !isString(messageId)) return callback(new Error('A valid message id is required.'));
+    if (!response || !isString(response)) return callback(new Error('A valid response is required.'));
 
-	process.send({
-		type: 'response',
-		data: {
-			messageId: messageId,
-			response: response
-		}
-	}, callback);
+    process.send({
+        type: 'response',
+        data: {
+            messageId: messageId,
+            response: response
+        }
+    }, callback);
 };
 
 /**
@@ -244,15 +244,15 @@ Platform.prototype.sendMessageResponse = function (messageId, response, callback
  * @param {function} [callback] Optional callback to be called once the data has been sent.
  */
 Platform.prototype.log = function (data, callback) {
-	callback = callback || function () {
-		};
+    callback = callback || function () {
+        };
 
-	if (!data || !isString(data)) return callback(new Error('A valid log data is required.'));
+    if (!data || !isString(data)) return callback(new Error('A valid log data is required.'));
 
-	process.send({
-		type: 'log',
-		data: data
-	}, callback);
+    process.send({
+        type: 'log',
+        data: data
+    }, callback);
 };
 
 /**
@@ -261,21 +261,21 @@ Platform.prototype.log = function (data, callback) {
  * @param {function} [callback] Optional callback to be called once the error has been sent.
  */
 Platform.prototype.handleException = function (error, callback) {
-	callback = callback || function () {
-		};
+    callback = callback || function () {
+        };
 
-	if (!isError(error)) return callback(new Error('A valid error object is required.'));
+    if (!isError(error)) return callback(new Error('A valid error object is required.'));
 
-	setImmediate(() => {
-		process.send({
-			type: 'error',
-			data: {
-				name: error.name,
-				message: error.message,
-				stack: error.stack
-			}
-		}, callback);
-	});
+    setImmediate(() => {
+        process.send({
+            type: 'error',
+            data: {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            }
+        }, callback);
+    });
 };
 
 module.exports = new Platform();
