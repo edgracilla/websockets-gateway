@@ -1,10 +1,10 @@
 'use strict';
 
-var domain   = require('domain'),
-	isEmpty  = require('lodash.isempty'),
-	platform = require('./platform'),
-	devices  = {},
-	clients = {},
+var domain            = require('domain'),
+	isEmpty           = require('lodash.isempty'),
+	platform          = require('./platform'),
+	devices           = {},
+	clients           = {},
 	authorizedDevices = {},
 	server, port;
 
@@ -14,7 +14,7 @@ var domain   = require('domain'),
  */
 platform.on('message', function (message) {
 	if (clients[message.device]) {
-		clients[message.device].send(message.message, function (error) {
+		clients[message.device].send(message.message, (error) => {
 			if (error)
 				platform.handleException(error);
 			else {
@@ -38,10 +38,10 @@ platform.on('message', function (message) {
 platform.on('adddevice', function (device) {
 	if (!isEmpty(device) && !isEmpty(device._id)) {
 		devices[device._id] = device;
-		platform.log('Successfully added ' + device._id + ' to the pool of authorized devices.');
+		platform.log(`WS Gateway - Successfully added ${device._id} to the pool of authorized devices.`);
 	}
 	else
-		platform.handleException(new Error('Device data invalid. Device not added. ' + device));
+		platform.handleException(new Error(`Device data invalid. Device not added. ${device}`));
 });
 
 /**
@@ -51,28 +51,28 @@ platform.on('adddevice', function (device) {
 platform.on('removedevice', function (device) {
 	if (!isEmpty(device) && !isEmpty(device._id)) {
 		delete devices[device._id];
-		platform.log('Successfully removed ' + device._id + ' from the pool of authorized devices.');
+		platform.log(`WS Gateway - Successfully removed ${device._id} from the pool of authorized devices.`);
 	}
 	else
-		platform.handleException(new Error('Device data invalid. Device not removed. ' + device));
+		platform.handleException(new Error(`Device data invalid. Device not removed. ${device}`));
 });
 
 /**
  * Emitted when the platform shuts down the plugin. The Gateway should perform cleanup of the resources on this event.
  */
 platform.once('close', function () {
-	var d = domain.create();
+	let d = domain.create();
 
-	d.once('error', function (error) {
-		console.error('Error closing Websockets Gateway on port ' + port, error);
+	d.once('error', (error) => {
+		console.error(`Error closing WS Gateway on port ${port}`, error);
 		platform.handleException(error);
 		platform.notifyClose();
 		d.exit();
 	});
 
-	d.run(function () {
+	d.run(() => {
 		server.close();
-		console.log('Websockets Gateway closed on port ' + port);
+		console.log(`WS Gateway closed on port ${port}`);
 		platform.notifyClose();
 		d.exit();
 	});
@@ -85,109 +85,127 @@ platform.once('close', function () {
  * @param {array} registeredDevices Collection of device objects registered on the platform.
  */
 platform.once('ready', function (options, registeredDevices) {
-	var config = require('./config.json');
-	var clone  = require('lodash.clone');
-	var WebSocketServer = require('ws').Server;
+	let keyBy  = require('lodash.keyby'),
+		config = require('./config.json');
 
-	var dataEvent = options.data_event || config.data_event.default;
-	var messageEvent = options.message_event || config.message_event.default;
-	var groupMessageEvent = options.groupmessage_event || config.groupmessage_event.default;
+	let WebSocketServer = require('ws').Server;
 
-	if (!isEmpty(registeredDevices)) {
-		var indexBy = require('lodash.indexby');
-		var tmpDevices = clone(registeredDevices, true);
+	let dataEvent         = options.data_event || config.data_event.default,
+		messageEvent      = options.message_event || config.message_event.default,
+		groupMessageEvent = options.groupmessage_event || config.groupmessage_event.default;
 
-		authorizedDevices = indexBy(tmpDevices, '_id');
-	}
+	if (!isEmpty(registeredDevices))
+		authorizedDevices = keyBy(registeredDevices, '_id');
 
 	port = options.port;
 	server = new WebSocketServer({
 		port: options.port
 	});
 
-	server.on('error', function (error) {
+	server.on('error', (error) => {
 		console.error(error);
 		platform.handleException(error);
 	});
 
-	server.on('connection', function (socket) {
-		socket.on('error', function (error) {
+	server.on('connection', (socket) => {
+		socket.on('error', (error) => {
 			console.error(error);
 			platform.handleException(error);
 		});
 
-		socket.on('close', function () {
+		socket.on('close', () => {
 			if (socket.device)
 				platform.notifyDisconnection(socket.device);
 		});
 
-		socket.on('message', function (message) {
-			var d = domain.create();
+		socket.on('message', (message) => {
+			let d = domain.create();
 
-			d.once('error', function (error) {
-				console.error('Error on message data', error);
-				platform.handleException(error);
+			d.once('error', () => {
+				platform.handleException(new Error('Invalid data sent. Data must be a valid JSON String with an "event" field and a "device" field which corresponds to a registered Device ID.'));
+				socket.send('Invalid data sent. Data must be a valid JSON String with an "event" field and a "device" field which corresponds to a registered Device ID.');
+
 				d.exit();
 			});
 
-			d.run(function () {
-				var data = JSON.parse(message);
+			d.run(() => {
+				let obj = JSON.parse(message);
 
-				if (isEmpty(data.device)) return d.exit();
+				if (isEmpty(obj.device)) {
+					platform.handleException(new Error('Invalid data sent. Data must be a valid JSON String with an "event" field and a "device" field which corresponds to a registered Device ID.'));
+					socket.send('Invalid data sent. Data must be a valid JSON String with an "event" field and a "device" field which corresponds to a registered Device ID.');
 
-				if (isEmpty(authorizedDevices[data.device])) {
+					return d.exit();
+				}
+
+				if (isEmpty(authorizedDevices[obj.device])) {
 					platform.log(JSON.stringify({
-						title: 'Unauthorized Device',
-						device: data.device
+						title: 'WS Gateway - Access Denied. Unauthorized Device',
+						device: obj.device
 					}));
 
 					socket.close(1008, 'Unauthorized or unregistered device.');
 
 					return d.exit();
 				}
-				else
-					platform.notifyConnection(data.device);
 
-				if (data.type === dataEvent) {
-					platform.processData(data.device, message);
+				if (obj.event === dataEvent) {
+					platform.processData(obj.device, message);
+
 					platform.log(JSON.stringify({
-						title: 'Data Received.',
-						device: data.device,
-						data: data
+						title: 'WS Gateway - Data Received.',
+						device: obj.device,
+						data: obj
 					}));
 
-					if (isEmpty(clients[data.device])) {
-						clients[data.device] = socket;
-						socket.device = data.device;
+					if (isEmpty(clients[obj.device])) {
+						clients[obj.device] = socket;
+						socket.device = obj.device;
 					}
+
+					socket.send('Data Processed');
 				}
-				else if (data.type === messageEvent) {
-					if (isEmpty(data.target) || isEmpty(data.message)) {
-						socket.send('Invalid message');
+				else if (obj.event === messageEvent) {
+					if (isEmpty(obj.target) || isEmpty(obj.message)) {
+						platform.handleException(new Error('Invalid message or command. Message must be a valid JSON String with "target" and "message" fields. "target" is the a registered Device ID. "message" is the payload.'));
+						socket.send('Invalid message or command. Message must be a valid JSON String with "target" and "message" fields. "target" is the a registered Device ID. "message" is the payload.');
+
+						return d.exit();
 					}
-					else {
-						platform.sendMessageToDevice(data.target, data.message);
-						platform.log(JSON.stringify({
-							title: 'Message Sent.',
-							source: data.device,
-							target: data.target,
-							message: data.message
-						}));
-					}
+
+					platform.sendMessageToDevice(obj.target, obj.message);
+
+					platform.log(JSON.stringify({
+						title: 'WS Gateway - Message Sent.',
+						source: obj.device,
+						target: obj.target,
+						message: obj.message
+					}));
+
+					socket.send('Message Processed');
 				}
-				else if (data.type === groupMessageEvent) {
-					if (isEmpty(data.target) || isEmpty(data.message)) {
-						socket.send('Invalid group message');
+				else if (obj.event === groupMessageEvent) {
+					if (isEmpty(obj.target) || isEmpty(obj.message)) {
+						platform.handleException(new Error('Invalid group message or command. Message must be a valid JSON String with "target" and "message" fields. "target" is the the group name. "message" is the payload.'));
+						socket.send('Invalid group message or command. Message must be a valid JSON String with "target" and "message" fields. "target" is the the group name. "message" is the payload.');
+
+						return d.exit();
 					}
-					else {
-						platform.sendMessageToGroup(data.target, data.message);
-						platform.log(JSON.stringify({
-							title: 'Group Message Sent.',
-							source: data.device,
-							target: data.target,
-							message: data.message
-						}));
-					}
+
+					platform.sendMessageToGroup(obj.target, obj.message);
+
+					platform.log(JSON.stringify({
+						title: 'WS Gateway - Group Message Sent.',
+						source: obj.device,
+						target: obj.target,
+						message: obj.message
+					}));
+
+					socket.send('Group Message Processed');
+				}
+				else {
+					platform.handleException(new Error(`Invalid event specified. Event: ${obj.event}`));
+					socket.send(`Invalid event specified. Event: ${obj.event}`);
 				}
 
 				d.exit();
@@ -195,6 +213,6 @@ platform.once('ready', function (options, registeredDevices) {
 		});
 	});
 
-	platform.log('Websockets Gateway initialized on port ' + port);
+	platform.log(`WS Gateway initialized on port ${port}`);
 	platform.notifyReady();
 });
