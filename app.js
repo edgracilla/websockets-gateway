@@ -120,7 +120,7 @@ platform.once('ready', function (options, registeredDevices) {
 
 		socket.on('message', (message) => {
 			async.waterfall([
-				async.constant(message),
+				async.constant(message || '{}'),
 				async.asyncify(JSON.parse)
 			], (error, obj) => {
 				if (error || isEmpty(obj.event) || isEmpty(obj.device)) {
