@@ -37,6 +37,11 @@ describe('WS Gateway', function () {
 			wsGateway.on('message', function (message) {
 				if (message.type === 'ready')
 					done();
+				else if (message.type === 'requestdeviceinfo') {
+					if (message.data.deviceId === CLIENT_ID1 || message.data.deviceId === CLIENT_ID2) {
+						
+					}
+				}
 			});
 
 			wsGateway.send({
@@ -44,8 +49,7 @@ describe('WS Gateway', function () {
 				data: {
 					options: {
 						port: PORT
-					},
-					devices: [{_id: CLIENT_ID1}, {_id: CLIENT_ID2}]
+					}
 				}
 			}, function (error) {
 				should.ifError(error);
