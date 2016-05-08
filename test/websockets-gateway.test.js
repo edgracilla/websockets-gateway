@@ -39,7 +39,12 @@ describe('WS Gateway', function () {
 					done();
 				else if (message.type === 'requestdeviceinfo') {
 					if (message.data.deviceId === CLIENT_ID1 || message.data.deviceId === CLIENT_ID2) {
-						
+						wsGateway.send({
+							type: message.data.requestId,
+							data: {
+								_id: message.data.deviceId
+							}
+						});
 					}
 				}
 			});
