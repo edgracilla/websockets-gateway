@@ -94,6 +94,13 @@ platform.once('ready', function (options) {
 					return socket.send('Invalid data sent. Data must be a valid JSON String with an "event" field and a "device" field which corresponds to a registered Device ID.');
 				}
 
+				if (isEmpty(clients[obj.device])) {
+					clients[obj.device] = socket;
+					socket.device = obj.device;
+				}
+
+				platform.notifyConnection(obj.device);
+
 				platform.requestDeviceInfo(obj.device, (error, requestId) => {
 					let t = setTimeout(() => {
 						platform.removeAllListeners(requestId);
@@ -119,11 +126,6 @@ platform.once('ready', function (options) {
 								device: obj.device,
 								data: obj
 							}));
-
-							if (isEmpty(clients[obj.device])) {
-								clients[obj.device] = socket;
-								socket.device = obj.device;
-							}
 
 							socket.send('Data Received');
 						}
