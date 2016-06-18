@@ -1,7 +1,7 @@
 {
   "name": "websockets-gateway",
   "description": "Vanilla Websockets Gateway for the Reekoh IoT Platform. Allows hardware devices to connect to a Reekoh instance to communicate and send data via the Websocket Protocol.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "Reekoh, Inc.",
   "main": "app.js",
   "scripts": {
@@ -21,12 +21,12 @@
   "devDependencies": {
     "gulp": "^3.9.0",
     "gulp-cli": "^1.1.1",
-    "gulp-jshint": "^2.0.0",
+    "gulp-jshint": "^2.0.1",
     "gulp-json-lint": "^0.1.0",
     "gulp-mocha": "^2.2.0",
     "gulp-plumber": "^1.0.1",
-    "mocha": "^2.4.5",
-    "should": "^8.2.1"
+    "mocha": "^2.5.3",
+    "should": "^9.0.2"
   },
   "license": "LGPL-3.0"
 }
