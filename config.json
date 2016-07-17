@@ -1,20 +1,20 @@
 {
-  "data_event": {
+  "data_topic": {
 	"type": "String",
-	"label": "Data Event",
+	"label": "Data Topic",
 	"default": "data",
-	"help": "(Optional) The event type to listen to for sensor data. Default: data"
+	"help": "(Optional) The topic type to listen to for sensor data. Default: data"
   },
-  "message_event": {
+  "message_topic": {
 	"type": "String",
-	"label": "Message Event",
+	"label": "Message Topic",
 	"default": "messages",
-	"help": "(Optional) The event type to listen to for messages. Default: messages"
+	"help": "(Optional) The topic type to listen to for messages. Default: messages"
   },
-  "groupmessage_event": {
+  "groupmessage_topic": {
 	"type": "String",
-	"label": "Group Message Event",
+	"label": "Group Message Topic",
 	"default": "groupmessages",
-	"help": "(Optional) The event type to listen to for group messages. Default: groupmessages"
+	"help": "(Optional) The topic type to listen to for group messages. Default: groupmessages"
   }
 }
