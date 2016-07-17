@@ -66,12 +66,12 @@ describe('WS Gateway', function () {
 		it('should be able to process data', function (done) {
 			this.timeout(5000);
 
-			var url = 'http://127.0.0.1:' + PORT + '/data';
+			var url = 'http://127.0.0.1:' + PORT;
 			var ws = new WebSocket(url);
 
 			ws.on('open', function () {
 				ws.send(JSON.stringify({
-					type: 'data',
+					topic: 'data',
 					device: '567827489028375',
 					co2: '11%',
 					o2: '20%'
