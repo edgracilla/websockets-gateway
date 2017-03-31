@@ -1,32 +1,33 @@
 {
   "name": "websockets-gateway",
+  "version": "1.0.0",
   "description": "Vanilla Websockets Gateway for the Reekoh IoT Platform. Allows hardware devices to connect to a Reekoh instance to communicate and send data via the Websocket Protocol.",
-  "version": "1.0.3",
   "author": "Reekoh, Inc.",
+  "license": "GPL-3.0",
   "main": "app.js",
   "scripts": {
-    "test": "gulp test"
+    "test": "gulp lint"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/Reekoh/websockets-gateway"
   },
   "dependencies": {
-    "async": "^1.5.2",
-    "bufferutil": "^1.2.1",
-    "lodash.isempty": "^4.1.0",
-    "utf-8-validate": "^1.2.1",
-    "ws": "^1.1.1"
+    "reekoh": "=1.0.2",
+    "async": "=1.5.2",
+    "bufferutil": "=1.2.1",
+    "lodash.isempty": "=4.1.0",
+    "utf-8-validate": "=1.2.1",
+    "ws": "=1.1.1"
   },
   "devDependencies": {
-    "gulp": "^3.9.0",
-    "gulp-cli": "^1.2.2",
-    "gulp-jshint": "^2.0.1",
-    "gulp-json-lint": "^0.1.0",
-    "gulp-mocha": "^2.2.0",
-    "gulp-plumber": "^1.0.1",
-    "mocha": "^2.5.3",
-    "should": "^9.0.2"
-  },
-  "license": "LGPL-3.0"
+    "gulp": "=3.9.0",
+    "gulp-cli": "=1.2.2",
+    "gulp-jshint": "=2.0.1",
+    "gulp-json-lint": "=0.1.0",
+    "gulp-mocha": "=2.2.0",
+    "gulp-plumber": "=1.0.1",
+    "mocha": "=2.5.3",
+    "should": "=9.0.2"
+  }
 }

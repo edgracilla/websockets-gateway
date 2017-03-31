@@ -1,186 +1,148 @@
-'use strict';
+'use strict'
 
-var async    = require('async'),
-	isEmpty  = require('lodash.isempty'),
-	platform = require('./platform'),
-	clients  = {},
-	server, port;
+const reekoh = require('reekoh')
+const plugin = new reekoh.plugins.Gateway()
 
-/**
- * Emitted when a message or command is received from the platform.
- * @param {object} message The message metadata
- */
-platform.on('message', function (message) {
-	if (clients[message.device]) {
-		clients[message.device].send(`${message.message}\n`, (error) => {
-			if (error)
-				platform.handleException(error);
-			else {
-				platform.sendMessageResponse(message.messageId, 'Message Sent');
-				platform.log(JSON.stringify({
-					title: 'Message Sent',
-					device: message.device,
-					messageId: message.messageId,
-					message: message.message
-				}));
-			}
-		});
-	}
-});
+const async = require('async')
+const isEmpty = require('lodash.isempty')
 
-/**
- * Emitted when the platform shuts down the plugin. The Gateway should perform cleanup of the resources on this topic.
- */
-platform.once('close', function () {
-	let d = require('domain').create();
+let clients = {}
+let server
+let port
 
-	d.once('error', function (error) {
-		console.error(`Error closing WS Gateway on port ${port}`, error);
-		platform.handleException(error);
-		platform.notifyClose();
-		d.exit();
-	});
+plugin.once('ready', () => {
+  let WebSocketServer = require('ws').Server
+  let commandTopic = plugin.config.commandTopic
+  let dataTopic = plugin.config.dataTopic
 
-	d.run(function () {
-		server.close(() => {
-			platform.log(`Websocket Gateway closed on port ${port}`);
-			platform.notifyClose();
-			d.exit();
-		});
-	});
-});
+  port = plugin.config.port
+  server = new WebSocketServer({
+    port: port
+  })
 
-/**
- * Emitted when the platform bootstraps the plugin. The plugin should listen once and execute its init process.
- * Afterwards, platform.notifyReady() should be called to notify the platform that the init process is done.
- * @param {object} options The parameters or options. Specified through config.json. Gateways will always have port as option.
- */
-platform.once('ready', function (options) {
-	let config = require('./config.json');
+  server.once('error', (error) => {
+    console.error('Websocket Gateway Error', error)
+    plugin.logException(error)
 
-	let WebSocketServer = require('ws').Server;
+    setTimeout(() => {
+      server.close(() => {
+        plugin.log(`Websocket Gateway closed on port ${port}`)
+        server.removeAllListeners()
+        process.exit()
+      })
+    }, 5000)
+  })
 
-	let dataTopic         = options.data_topic || config.data_topic.default,
-		messageTopic      = options.message_topic || config.message_topic.default,
-		groupMessageTopic = options.groupmessage_topic || config.groupmessage_topic.default;
+  server.once('listening', () => {
+    plugin.log(`Websocket Gateway initialized on port ${port}`)
+    plugin.emit('init')
+  })
 
-	port = options.port;
-	server = new WebSocketServer({
-		port: options.port
-	});
+  server.on('connection', (socket) => {
+    let errMsg = null
 
-	server.once('error', (error) => {
-		console.error('Websocket Gateway Error', error);
-		platform.handleException(error);
+    let handleErr = (err) => {
+      if (err) {
+        console.error(err)
+        plugin.logException(err)
+      }
+    }
 
-		setTimeout(() => {
-			server.close(() => {
-				platform.log(`Websocket Gateway closed on port ${port}`);
-				server.removeAllListeners();
-				process.exit();
-			});
-		}, 5000);
-	});
+    socket.on('error', handleErr)
 
-	server.once('listening', () => {
-		platform.log(`Websocket Gateway initialized on port ${port}`);
-		platform.notifyReady();
-	});
+    socket.once('close', () => {
+      if (socket.device) plugin.notifyDisconnection(socket.device)
 
-	server.on('connection', (socket) => {
-		socket.on('error', (error) => {
-			console.error(error);
-			platform.handleException(error);
-		});
+      setTimeout(() => {
+        socket.removeAllListeners()
+      }, 5000)
+    })
 
-		socket.once('close', () => {
-			if (socket.device) platform.notifyDisconnection(socket.device);
+    socket.on('message', (message) => {
+      async.waterfall([
+        async.constant(message || '{}'),
+        async.asyncify(JSON.parse)
+      ], (error, obj) => {
+        if (error || isEmpty(obj.topic) || (isEmpty(obj.device) && isEmpty(obj.deviceGroup))) {
+          errMsg = 'Invalid data sent. Must be a valid JSON String with a "topic" field and a "device" field which corresponds to a registered Device ID.'
+          plugin.logException(new Error(errMsg))
+          return socket.close(1003, errMsg)
+        }
 
-			setTimeout(() => {
-				socket.removeAllListeners();
-			}, 5000);
-		});
+        if (isEmpty(clients[obj.device])) {
+          socket.device = obj.device
+          clients[obj.device] = socket
+          plugin.notifyConnection(obj.device)
+        }
 
-		socket.on('message', (message) => {
-			async.waterfall([
-				async.constant(message || '{}'),
-				async.asyncify(JSON.parse)
-			], (error, obj) => {
-				if (error || isEmpty(obj.topic) || isEmpty(obj.device)) {
-					platform.handleException(new Error('Invalid data sent. Must be a valid JSON String with a "topic" field and a "device" field which corresponds to a registered Device ID.'));
-					return socket.close(1003, 'Invalid data sent. Must be a valid JSON String with a "topic" field and a "device" field.\n');
-				}
+        plugin.requestDeviceInfo(obj.device).then((deviceInfo) => {
+          if (isEmpty(deviceInfo)) {
+            plugin.log(JSON.stringify({
+              title: 'WS Gateway - Access Denied. Unauthorized Device',
+              device: obj.device
+            }))
 
-				if (isEmpty(clients[obj.device])) {
-					platform.notifyConnection(obj.device);
-					socket.device = obj.device;
-					clients[obj.device] = socket;
-				}
+            return socket.close(1003, `Device not registered. Device ID: ${obj.device}\n`)
+          }
 
-				platform.requestDeviceInfo(obj.device, (error, requestId) => {
-					platform.once(requestId, (deviceInfo) => {
-						if (isEmpty(deviceInfo)) {
-							platform.log(JSON.stringify({
-								title: 'WS Gateway - Access Denied. Unauthorized Device',
-								device: obj.device
-							}));
+          if (obj.topic === dataTopic) {
+            return plugin.pipe(obj).then(() => {
+              return plugin.log(JSON.stringify({
+                title: 'WS Gateway - Data Received (data topic)',
+                device: obj.device,
+                data: obj
+              })).then(() => {
+                socket.send('Data Received')
+              })
+            }).catch(handleErr)
+          } else if (obj.topic === commandTopic) {
+            if (isEmpty(obj.command) || (isEmpty(obj.device) && isEmpty(obj.deviceGroup))) {
+              errMsg = 'Invalid message or command. Message must be a valid JSON String with "device" or "deviceGroup" and "command" fields. "device" is the a registered Device ID. "command" is the payload.'
 
-							return socket.close(1003, `Device not registered. Device ID: ${obj.device}\n`);
-						}
+              return plugin
+                .logException(new Error(errMsg))
+                .then(() => socket.send(errMsg))
+            }
 
-						if (obj.topic === dataTopic) {
-							platform.processData(obj.device, message);
+            return plugin.relayCommand(obj.command, obj.target, obj.deviceGroup, obj.device).then(() => {
+              return plugin.log(JSON.stringify({
+                title: 'WS Gateway - Message Received (command topic)',
+                deviceGroup: obj.deviceGroup,
+                device: obj.device,
+                command: obj.command
+              })).then(() => {
+                socket.send(`Command Received. Device ID: ${obj.device}. Message: ${message}\n`)
+              })
+            }).catch(handleErr)
+          } else {
+            errMsg = `Invalid topic specified. Topic: ${obj.topic}`
+            return plugin.logException(new Error(errMsg))
+              .then(() => socket.close(1003, errMsg))
+          }
+        }).catch(handleErr)
+      })
+    })
+  })
+})
 
-							platform.log(JSON.stringify({
-								title: 'WS Gateway - Data Received.',
-								device: obj.device,
-								data: obj
-							}));
+plugin.on('command', (msg) => {
+  // console.log(msg)
+  if (clients[msg.device]) {
+    clients[msg.device].send(`${msg.command}\n`, (error) => {
+      if (error) return plugin.logException(error)
 
-							socket.send(`Data Received.`);
-							//socket.send(`Data Received. Device ID: ${obj.device}. Data: ${message}\n`);
-						}
-						else if (obj.topic === messageTopic) {
-							if (isEmpty(obj.target) || isEmpty(obj.message)) {
-								platform.handleException(new Error('Invalid message or command. Message must be a valid JSON String with "target" and "message" fields. "target" is the a registered Device ID. "message" is the payload.'));
-								return socket.send('Invalid message or command. Message must be a valid JSON String with "target" and "message" fields. "target" is the a registered Device ID. "message" is the payload.');
-							}
+      plugin.sendCommandResponse(msg.commandId, 'Message Sent').then(() => {
+        plugin.emit('response.ok', msg.device)
 
-							platform.sendMessageToDevice(obj.target, obj.message);
+        plugin.log(JSON.stringify({
+          title: 'Message Sent',
+          device: msg.device,
+          commandId: msg.commandId,
+          command: msg.command
+        }))
+      })
+    })
+  }
+})
 
-							platform.log(JSON.stringify({
-								title: 'WS Gateway - Message Received.',
-								source: obj.device,
-								target: obj.target,
-								message: obj.message
-							}));
-
-							socket.send(`Message Received. Device ID: ${obj.device}. Message: ${message}\n`);
-						}
-						else if (obj.topic === groupMessageTopic) {
-							if (isEmpty(obj.target) || isEmpty(obj.message)) {
-								platform.handleException(new Error('Invalid group message or command. Message must be a valid JSON String with "target" and "message" fields. "target" is the the group id or name. "message" is the payload.'));
-								return socket.send('Invalid group message or command. Message must be a valid JSON String with "target" and "message" fields. "target" is the the group id or name. "message" is the payload.');
-							}
-
-							platform.sendMessageToGroup(obj.target, obj.message);
-
-							platform.log(JSON.stringify({
-								title: 'WS Gateway - Group Message Received.',
-								source: obj.device,
-								target: obj.target,
-								message: obj.message
-							}));
-
-							socket.send(`Group Message Received. Device ID: ${obj.device}. Message: ${message}\n`);
-						}
-						else {
-							platform.handleException(new Error(`Invalid topic specified. Topic: ${obj.topic}`));
-							socket.close(1003, `Invalid topic specified. Topic: ${obj.topic}\n`);
-						}
-					});
-				});
-			});
-		});
-	});
-});
+module.exports = plugin

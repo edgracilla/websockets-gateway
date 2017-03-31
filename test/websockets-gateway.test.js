@@ -1,86 +1,152 @@
-'use strict';
+/* global describe, it, before, after */
+'use strict'
 
-const PORT       = 8080,
-	  CLIENT_ID1 = '567827489028375',
-	  CLIENT_ID2 = '567827489028376';
+const async = require('async')
+const WebSocket = require('ws')
+const should = require('should')
 
-var cp        = require('child_process'),
-	should    = require('should'),
-	WebSocket = require('ws'),
-	wsGateway;
+const PORT = 8182
+const PLUGIN_ID = 'demo.gateway'
+const BROKER = 'amqp://guest:guest@127.0.0.1/'
+const OUTPUT_PIPES = 'demo.outpipe1,demo.outpipe2'
+const COMMAND_RELAYS = 'demo.relay1,demo.relay2'
+
+let _ws = null
+let _app = null
+
+let conf = {
+  port: PORT,
+  dataTopic: 'data',
+  commandTopic: 'command'
+}
 
 describe('WS Gateway', function () {
-	this.slow(8000);
 
-	after('terminate child process', function () {
-		this.timeout(5000);
+  before('init', () => {
+    process.env.BROKER = BROKER
+    process.env.PLUGIN_ID = PLUGIN_ID
+    process.env.OUTPUT_PIPES = OUTPUT_PIPES
+    process.env.COMMAND_RELAYS = COMMAND_RELAYS
+    process.env.CONFIG = JSON.stringify(conf)
+  })
 
-		wsGateway.send({
-			type: 'close'
-		});
+  after('terminate', function () {
 
-		setTimeout(function () {
-			wsGateway.kill('SIGKILL');
-		}, 4500);
-	});
+  })
 
-	describe('#spawn', function () {
-		it('should spawn a child process', function () {
-			should.ok(wsGateway = cp.fork(process.cwd()), 'Child process not spawned.');
-		});
-	});
+  describe('#start', function () {
+    it('should start the app', function (done) {
+      this.timeout(10000)
+      _app = require('../app')
 
-	describe('#handShake', function () {
-		it('should notify the parent process when ready within 8 seconds', function (done) {
-			this.timeout(8000);
+      _app.once('init', () => {
+        _ws = new WebSocket('http://127.0.0.1:' + PORT)
+        done()
+      })
+    })
+  })
 
-			wsGateway.on('message', function (message) {
-				if (message.type === 'ready')
-					done();
-				else if (message.type === 'requestdeviceinfo') {
-					if (message.data.deviceId === CLIENT_ID1 || message.data.deviceId === CLIENT_ID2) {
-						wsGateway.send({
-							type: message.data.requestId,
-							data: {
-								_id: message.data.deviceId
-							}
-						});
-					}
-				}
-			});
+  describe('#data', function () {
+    it('should be able to process data', function (done) {
+      this.timeout(10000)
 
-			wsGateway.send({
-				type: 'ready',
-				data: {
-					options: {
-						port: PORT
-					}
-				}
-			}, function (error) {
-				should.ifError(error);
-			});
-		});
-	});
+      _ws.send(JSON.stringify({
+        topic: 'data',
+        device: '567827489028375',
+        dummy: 'this is test'
+      }))
 
-	describe('#message', function () {
-		it('should be able to process data', function (done) {
-			this.timeout(5000);
+      _ws.once('message', (data) => {
+        should.ok(data.toString().startsWith('Data Received'))
+        done()
+      })
+    })
+  })
 
-			var url = 'http://127.0.0.1:' + PORT;
-			var ws = new WebSocket(url);
+  describe('#command', function () {
 
-			ws.on('open', function () {
-				ws.send(JSON.stringify({
-					topic: 'data',
-					device: '567827489028375',
-					co2: '11%',
-					o2: '20%'
-				}));
-			});
+    it('should be able to send command (sent to offline device)', function (done) {
+      this.timeout(10000)
 
-			setTimeout(function () {
-				done();
-			}, 2000);
-		});
-	});
-});
+      _ws.once('message', (data) => {
+        should.ok(data.toString().startsWith('Command Received.'))
+        done()
+      })
+
+      _ws.send(JSON.stringify({
+        topic: 'command',
+        device: '567827489028375',
+        target: '567827489028376', // <-- offline device
+        deviceGroup: '',
+        command: 'TEST_OFFLINE_COMMAND'
+      }))
+    })
+
+    it('should be able to recieve command response', function (done) {
+      this.timeout(10000)
+
+      let ws2 = new WebSocket('http://127.0.0.1:' + PORT)
+
+      ws2.on('open', () => {
+        ws2.send(JSON.stringify({
+          topic: 'command',
+          device: '567827489028377',
+          target: '567827489028375',
+          deviceGroup: '',
+          command: 'TURNOFF'
+        }))
+
+        _app.on('response.ok', (device) => {
+          if (device === '567827489028375') done()
+        })
+      })
+    })
+
+    // NOTE!!! below test requires device '567827489028376' to offline in mongo
+    // NOTE!!! below test requires device '567827489028376' to offline in mongo
+    // NOTE!!! below test requires device '567827489028376' to offline in mongo
+
+    it('should be able to recieve offline commands (on boot)', function (done) {
+      this.timeout(5000)
+
+      let called = false
+      let ws3 = new WebSocket('http://127.0.0.1:' + PORT)
+
+      ws3.on('open', () => {
+        ws3.send(JSON.stringify({
+          topic: 'data',
+          device: '567827489028376'
+        }))
+
+        _app.on('response.ok', (device) => {
+          if (!called && device === '567827489028376') {
+            called = true
+            done()
+          }
+        })
+      })
+    })
+
+
+    /*
+
+    NOTE: not testable yet since we cant pull devices from group yet
+
+    it('should be able to send command to group of device', function (done) {
+      this.timeout(10000)
+
+      _ws.send(JSON.stringify({
+        topic: 'command',
+        deviceGroup: 'group123',
+        command: 'ACTIVATE'
+      }))
+
+      _app.once('command.ok', () => {
+        setTimeout(done, 5000)
+      })
+    })
+
+    */
+
+  })
+})

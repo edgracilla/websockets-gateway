@@ -1,20 +1,14 @@
 {
-  "data_topic": {
+  "dataTopic": {
 	"type": "String",
 	"label": "Data Topic",
 	"default": "data",
 	"help": "(Optional) The topic type to listen to for sensor data. Default: data"
   },
-  "message_topic": {
+  "commandTopic": {
 	"type": "String",
-	"label": "Message Topic",
-	"default": "messages",
-	"help": "(Optional) The topic type to listen to for messages. Default: messages"
-  },
-  "groupmessage_topic": {
-	"type": "String",
-	"label": "Group Message Topic",
-	"default": "groupmessages",
-	"help": "(Optional) The topic type to listen to for group messages. Default: groupmessages"
+	"label": "Command Topic",
+	"default": "command",
+	"help": "(Optional) The topic type to listen to for commands. Either for device or group of device. Default: commands"
   }
 }
