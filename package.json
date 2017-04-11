@@ -13,20 +13,23 @@
     "url": "https://github.com/Reekoh/websockets-gateway"
   },
   "dependencies": {
-    "reekoh": "=1.0.2",
+    "amqplib": "^0.5.1",
     "async": "=1.5.2",
     "bufferutil": "=1.2.1",
-    "lodash.isempty": "=4.1.0",
+    "lodash.isempty": "^4.1.0",
+    "reekoh": "=1.0.2",
     "utf-8-validate": "=1.2.1",
     "ws": "=1.1.1"
   },
   "devDependencies": {
-    "gulp": "=3.9.0",
-    "gulp-cli": "=1.2.2",
+    "gulp": "=3.9.1",
+    "gulp-cli": "=1.2.1",
     "gulp-jshint": "=2.0.1",
     "gulp-json-lint": "=0.1.0",
     "gulp-mocha": "=2.2.0",
-    "gulp-plumber": "=1.0.1",
+    "gulp-plumber": "=1.1.0",
+    "gulp-standard": "=8.0.4",
+    "jshint": "=2.9.4",
     "mocha": "=2.5.3",
     "should": "=9.0.2"
   }
